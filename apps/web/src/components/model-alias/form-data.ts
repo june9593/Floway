@@ -58,10 +58,14 @@ export const aliasDefaults = (alias: ModelAlias | null): AliasFormValues => {
 export const aliasBody = (values: AliasFormValues): AliasWriteBody => {
   const trimRules = (rules: AliasTarget['rules']): AliasTarget['rules'] => {
     const reasoning = rules.reasoning ? Object.fromEntries(Object.entries(rules.reasoning).filter(([, value]) => value !== undefined && value !== '')) : undefined;
+    const anthropicBetaDeny = [...new Set(rules.anthropicBetaDeny?.map(value => value.trim()).filter(Boolean) ?? [])];
     return {
       ...(reasoning && Object.keys(reasoning).length ? { reasoning } : {}),
       ...(rules.verbosity ? { verbosity: rules.verbosity.trim() } : {}),
       ...(rules.serviceTier ? { serviceTier: rules.serviceTier.trim() } : {}),
+      ...(anthropicBetaDeny.length > 0 ? { anthropicBetaDeny } : {}),
+      ...(rules.anthropicEffortDeny === true ? { anthropicEffortDeny: true } : {}),
+      ...(rules.anthropicFirstEventTimeoutMs !== undefined ? { anthropicFirstEventTimeoutMs: rules.anthropicFirstEventTimeoutMs } : {}),
     };
   };
   return {

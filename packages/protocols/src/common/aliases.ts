@@ -73,6 +73,9 @@ export interface ChatAliasRules {
   };
   verbosity?: Verbosity;
   serviceTier?: ServiceTier;
+  anthropicBetaDeny?: string[];
+  anthropicEffortDeny?: boolean;
+  anthropicFirstEventTimeoutMs?: number;
 }
 
 // Rule overlay payload. Today only chat-kind aliases carry rules — embedding

@@ -83,6 +83,17 @@ export const applyRulesToUpstreamAnthropicMessages = (body: AnthropicMessagesPay
       delete body.speed;
     }
   }
+  if (rules.anthropicEffortDeny === true && body.output_config !== undefined) {
+    const { effort: _effort, ...remaining } = body.output_config;
+    if (Object.keys(remaining).length > 0) body.output_config = remaining;
+    else delete body.output_config;
+  }
+};
+
+export const applyRulesToAnthropicBeta = (anthropicBeta: readonly string[], rules: AliasRules): readonly string[] => {
+  if (rules.anthropicBetaDeny === undefined || rules.anthropicBetaDeny.length === 0) return anthropicBeta;
+  const denied = new Set(rules.anthropicBetaDeny);
+  return anthropicBeta.filter(beta => !denied.has(beta));
 };
 
 // Collapse OpenAI-style summary presets onto Anthropic's structured

@@ -696,6 +696,9 @@ const chatAliasRulesSchema = z.object({
   reasoning: chatAliasReasoningSchema.optional(),
   verbosity: z.string().min(1).optional(),
   serviceTier: z.string().min(1).optional(),
+  anthropicBetaDeny: z.array(z.string().min(1)).optional(),
+  anthropicEffortDeny: z.boolean().optional(),
+  anthropicFirstEventTimeoutMs: z.number().int().min(1).max(600_000).optional(),
 }).strict();
 
 // Rules are validated against the alias-level kind in the superRefine pass
