@@ -103,9 +103,9 @@ export const anthropicMessagesAttempt = {
         let firstEventTimedOut = false;
         const timeoutHandle = timeoutController !== undefined
           ? setTimeout(() => {
-            firstEventTimedOut = true;
-            timeoutController.abort(new Error(`Anthropic Messages first event timed out after ${timeoutMs}ms`));
-          }, timeoutMs)
+              firstEventTimedOut = true;
+              timeoutController.abort(new Error(`Anthropic Messages first event timed out after ${timeoutMs}ms`));
+            }, timeoutMs)
           : undefined;
         const signal = timeoutController === undefined
           ? ctx.abortSignal

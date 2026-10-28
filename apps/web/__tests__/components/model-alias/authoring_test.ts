@@ -104,7 +104,7 @@ describe('alias wire body', () => {
     expect(body).toMatchObject({ name: 'renamed', display_name: null, targets: [{ target_model_id: 'a', rules: {} }] });
     expect(body).not.toHaveProperty('sort_order');
   });
-  
+
   it('preserves and normalizes advanced Anthropic beta deny rules', () => {
     const values = aliasDefaults(existing);
     values.targets = [target('a', { anthropicBetaDeny: [' context-1m-2025-08-07 ', '', 'context-1m-2025-08-07'], anthropicEffortDeny: true, anthropicFirstEventTimeoutMs: 30_000 })];
