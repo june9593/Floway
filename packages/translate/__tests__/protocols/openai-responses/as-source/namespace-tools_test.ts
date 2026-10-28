@@ -227,10 +227,12 @@ test('the complete Chat Completions trip restores flat function and custom calla
       id: 'chat1', object: 'chat.completion.chunk', model: 'm', created: 0,
       choices: [{
         index: 0,
-        delta: { tool_calls: [
-          { index: 0, id: 'call1', type: 'function', function: { name: 'lookup', arguments: '{"q":1}' } },
-          { index: 1, id: 'call2', type: 'function', function: { name: 'apply_patch', arguments: '{"input":"patch"}' } },
-        ] },
+        delta: {
+          tool_calls: [
+            { index: 0, id: 'call1', type: 'function', function: { name: 'lookup', arguments: '{"q":1}' } },
+            { index: 1, id: 'call2', type: 'function', function: { name: 'apply_patch', arguments: '{"input":"patch"}' } },
+          ],
+        },
         finish_reason: null,
       }],
     });
