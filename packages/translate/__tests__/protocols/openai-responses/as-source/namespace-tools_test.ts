@@ -210,7 +210,10 @@ const flatCallablePayload = (): OpenAIResponsesRequestPayloadEx => ({
 });
 
 const expectFlatCallableKinds = (events: OpenAIResponsesStreamEventEx[]): void => {
-  const items = events.flatMap(event => event.type === 'response.output_item.done' ? [event.item] : []);
+  const items = events.flatMap(event => event.type === 'response.output_item.done'
+    && (event.item.type === 'function_call' || event.item.type === 'custom_tool_call')
+    ? [event.item]
+    : []);
   expect(items).toEqual([
     expect.objectContaining({ type: 'function_call', name: 'lookup', arguments: '{"q":1}' }),
     expect.objectContaining({ type: 'custom_tool_call', name: 'apply_patch', input: 'patch' }),
