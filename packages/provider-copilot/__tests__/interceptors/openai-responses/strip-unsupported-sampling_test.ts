@@ -2,13 +2,13 @@ import { test } from 'vitest';
 
 import { withUnsupportedSamplingStripped } from '../../../src/interceptors/openai-responses/strip-unsupported-sampling.ts';
 import type { OpenAIResponsesBoundaryCtx } from '../../../src/interceptors/openai-responses/types.ts';
-import type { OpenAIResponsesStreamEvent } from '@floway-dev/protocols/openai-responses';
+import type { OpenAIResponsesStreamEventEx } from '@floway-dev/protocols/openai-responses';
 import type { ProviderStreamResult } from '@floway-dev/provider';
 import { assertEquals, assertFalse, stubProviderModel } from '@floway-dev/test-utils';
 
 const stubRequest = {};
 
-const okEvents = (): Promise<ProviderStreamResult<OpenAIResponsesStreamEvent>> =>
+const okEvents = (): Promise<ProviderStreamResult<OpenAIResponsesStreamEventEx>> =>
   Promise.resolve({ ok: true, events: (async function* () {})(), modelKey: 'test', headers: new Headers() });
 
 const invocation = (model: string): OpenAIResponsesBoundaryCtx => ({
