@@ -4,7 +4,7 @@ import { createAnthropicMessagesBillableUsageReader } from './usage.ts';
 import { buildUpstreamCallOptions } from '../../shared/upstream-call-options.ts';
 import { openaiChatCompletionsAttempt } from '../openai-chat-completions/attempt.ts';
 import { openaiResponsesAttempt } from '../openai-responses/attempt.ts';
-import { applyRulesToUpstreamAnthropicMessages } from '../shared/alias-rules.ts';
+import { applyRulesToAnthropicBeta, applyRulesToUpstreamAnthropicMessages } from '../shared/alias-rules.ts';
 import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
 import { providerStreamResultToExecuteResult } from '../shared/provider-stream-result.ts';
 import { plainResultFromResponse } from '../shared/respond.ts';
@@ -14,8 +14,8 @@ import { captureFromDump, traverseTranslation } from '../shared/translate-traver
 import { runInterceptors } from '@floway-dev/interceptor';
 import type { AnthropicMessagesPayload, AnthropicMessagesStreamEventEx } from '@floway-dev/protocols/anthropic-messages';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
-import type { ModelCandidate, ExecuteResult, AnthropicMessagesUpstreamCallOptions, PlainResult } from '@floway-dev/provider';
-import { providerModelOf } from '@floway-dev/provider';
+import type { ModelCandidate, ExecuteResult, AnthropicMessagesUpstreamCallOptions, PlainResult, ProviderStreamResult } from '@floway-dev/provider';
+import { internalErrorResult, providerModelOf, toInternalDebugError } from '@floway-dev/provider';
 import { routeAnthropicMessages } from '@floway-dev/translate/anthropic-messages';
 
 // `/v1/messages` generate prefers a native Anthropic Messages target, then the
@@ -44,6 +44,41 @@ const buildAnthropicMessagesUpstreamCallOptions = (
   anthropicBeta,
 });
 
+const preflightAnthropicMessagesStream = async (
+  result: Extract<ProviderStreamResult<AnthropicMessagesStreamEventEx>, { ok: true }>,
+  abortController: AbortController,
+): Promise<Extract<ProviderStreamResult<AnthropicMessagesStreamEventEx>, { ok: true }>> => {
+  const iterator = result.events[Symbol.asyncIterator]();
+  const buffered: ProtocolFrame<AnthropicMessagesStreamEventEx>[] = [];
+  try {
+    for (;;) {
+      const next = await iterator.next();
+      if (next.done) throw new Error('Upstream Anthropic Messages stream ended before message_start');
+      buffered.push(next.value);
+      if (next.value.type === 'done') throw new Error('Upstream Anthropic Messages stream ended before message_start');
+      const event = next.value.event;
+      if (event.type === 'ping') continue;
+      if (event.type === 'error') throw new Error(`Upstream Anthropic Messages SSE error: ${event.error.type}: ${event.error.message}`);
+      if (event.type !== 'message_start') {
+        throw new Error(`Upstream Anthropic Messages stream started with invalid event: ${JSON.stringify(event)}`);
+      }
+      break;
+    }
+  } catch (error) {
+    if (!abortController.signal.aborted) abortController.abort(error);
+    throw error;
+  }
+  const events = (async function* () {
+    yield* buffered;
+    for (;;) {
+      const next = await iterator.next();
+      if (next.done) return;
+      yield next.value;
+    }
+  })();
+  return { ...result, events };
+};
+
 export const anthropicMessagesAttempt = {
   generate: async (args: AnthropicMessagesAttemptArgs): Promise<ExecuteResult<ProtocolFrame<AnthropicMessagesStreamEventEx>>> => {
     const { payload: sourcePayload, ctx, candidate, headers: sourceHeaders, anthropicBeta } = args;
@@ -60,14 +95,47 @@ export const anthropicMessagesAttempt = {
     return await runInterceptors(invocation, ctx, anthropicMessagesInterceptors, async () => {
       if (targetApi === 'anthropicMessages') {
         if (candidate.rules !== undefined) applyRulesToUpstreamAnthropicMessages(invocation.payload, candidate.rules);
+        const effectiveAnthropicBeta = candidate.rules !== undefined
+          ? applyRulesToAnthropicBeta(anthropicBeta, candidate.rules)
+          : anthropicBeta;
+        const timeoutMs = candidate.rules?.anthropicFirstEventTimeoutMs;
+        const timeoutController = timeoutMs !== undefined ? new AbortController() : undefined;
+        let firstEventTimedOut = false;
+        const timeoutHandle = timeoutController !== undefined
+          ? setTimeout(() => {
+            firstEventTimedOut = true;
+            timeoutController.abort(new Error(`Anthropic Messages first event timed out after ${timeoutMs}ms`));
+          }, timeoutMs)
+          : undefined;
+        const signal = timeoutController === undefined
+          ? ctx.abortSignal
+          : ctx.abortSignal === undefined
+            ? timeoutController.signal
+            : AbortSignal.any([ctx.abortSignal, timeoutController.signal]);
         const { model: _model, ...body } = invocation.payload;
-        const providerResult = await candidate.provider.instance.callAnthropicMessages(
-          providerModelOf(candidate),
-          body,
-          ctx.abortSignal,
-          buildAnthropicMessagesUpstreamCallOptions(candidate, ctx, invocation.headers, anthropicBeta),
-        );
-        return await providerStreamResultToExecuteResult(providerResult, candidate, targetApi, ctx, createAnthropicMessagesBillableUsageReader());
+        try {
+          const rawProviderResult = await candidate.provider.instance.callAnthropicMessages(
+            providerModelOf(candidate),
+            body,
+            signal,
+            buildAnthropicMessagesUpstreamCallOptions(candidate, ctx, invocation.headers, effectiveAnthropicBeta),
+          );
+          const providerResult = timeoutController !== undefined && rawProviderResult.ok
+            ? await preflightAnthropicMessagesStream(rawProviderResult, timeoutController)
+            : rawProviderResult;
+          return await providerStreamResultToExecuteResult(providerResult, candidate, targetApi, ctx, createAnthropicMessagesBillableUsageReader());
+        } catch (error) {
+          ctx.abortSignal?.throwIfAborted();
+          if (firstEventTimedOut) {
+            return internalErrorResult(504, toInternalDebugError(timeoutController?.signal.reason ?? error, targetApi), ctx.attempt.telemetry);
+          }
+          if (timeoutController !== undefined) {
+            return internalErrorResult(502, toInternalDebugError(error, targetApi), ctx.attempt.telemetry);
+          }
+          throw error;
+        } finally {
+          if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+        }
       }
       if (targetApi === 'openaiResponses') {
         return await traverseTranslation(
@@ -110,12 +178,15 @@ export const anthropicMessagesAttempt = {
     };
     const response = await runInterceptors(invocation, ctx, anthropicMessagesCountTokensInterceptors, async () => {
       if (candidate.rules !== undefined) applyRulesToUpstreamAnthropicMessages(invocation.payload, candidate.rules);
+      const effectiveAnthropicBeta = candidate.rules !== undefined
+        ? applyRulesToAnthropicBeta(anthropicBeta, candidate.rules)
+        : anthropicBeta;
       const { model: _model, ...body } = invocation.payload;
       const { response } = await candidate.provider.instance.callAnthropicMessagesCountTokens(
         providerModelOf(candidate),
         body,
         ctx.abortSignal,
-        buildAnthropicMessagesUpstreamCallOptions(candidate, ctx, invocation.headers, anthropicBeta),
+        buildAnthropicMessagesUpstreamCallOptions(candidate, ctx, invocation.headers, effectiveAnthropicBeta),
       );
       return response;
     });
