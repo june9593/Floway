@@ -113,3 +113,11 @@ test('foreign key enforcement is on', () => withTempDb(async path => {
     () => db.prepare('INSERT INTO child (id, parent_id) VALUES (?, ?)').bind(1, 999).run(),
   );
 }));
+
+test('waits for transient cross-connection locks', () => withTempDb(async path => {
+  const db = createNodeSqliteDatabase(path);
+
+  const timeout = await db.prepare('PRAGMA busy_timeout').first<{ timeout: number }>();
+
+  assertEquals(timeout, { timeout: 30_000 });
+}));
