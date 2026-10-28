@@ -199,3 +199,53 @@ test('the complete Anthropic Messages trip restores the namespace after target t
   expect(events).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'response.output_item.done', item: expect.objectContaining({ namespace: 'agents', name: 'spawn', arguments: '{}' }) })]));
   expect(events.at(-1)).toMatchObject({ type: 'response.completed', response: { output: [expect.objectContaining({ namespace: 'agents', name: 'spawn' }), expect.objectContaining({ type: 'reasoning', summary: [], encrypted_content: expect.any(String) })] } });
 });
+
+const flatCallablePayload = (): OpenAIResponsesRequestPayloadEx => ({
+  model: 'm',
+  input: [],
+  tools: [
+    { type: 'function', name: 'lookup', parameters: { type: 'object' } },
+    { type: 'custom', name: 'apply_patch' },
+  ],
+});
+
+const expectFlatCallableKinds = (events: OpenAIResponsesStreamEventEx[]): void => {
+  const items = events.flatMap(event => event.type === 'response.output_item.done' ? [event.item] : []);
+  expect(items).toEqual([
+    expect.objectContaining({ type: 'function_call', name: 'lookup', arguments: '{"q":1}' }),
+    expect.objectContaining({ type: 'custom_tool_call', name: 'apply_patch', input: 'patch' }),
+  ]);
+};
+
+test('the complete Chat Completions trip restores flat function and custom callable kinds', async () => {
+  const trip = await routeOpenAIResponses(flatCallablePayload()).viaOpenAIChatCompletions({ sidecarCodec: createTestSidecarCodec('test-codec-scope'), model: 'm' });
+  const frames = (async function* (): AsyncGenerator<ProtocolFrame<OpenAIChatCompletionsStreamEvent>> {
+    yield eventFrame({ id: 'chat1', object: 'chat.completion.chunk', model: 'm', created: 0, choices: [{ index: 0, delta: { tool_calls: [
+      { index: 0, id: 'call1', type: 'function', function: { name: 'lookup', arguments: '{"q":1}' } },
+      { index: 1, id: 'call2', type: 'function', function: { name: 'apply_patch', arguments: '{"input":"patch"}' } },
+    ] }, finish_reason: null }] });
+    yield eventFrame({ id: 'chat1', object: 'chat.completion.chunk', model: 'm', created: 0, choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] });
+    yield doneFrame();
+  })();
+  const events: OpenAIResponsesStreamEventEx[] = [];
+  for await (const frame of trip.events(frames)) if (frame.type === 'event') events.push(frame.event);
+  expectFlatCallableKinds(events);
+});
+
+test('the complete Anthropic Messages trip restores flat function and custom callable kinds', async () => {
+  const trip = await routeOpenAIResponses(flatCallablePayload()).viaAnthropicMessages({ sidecarCodec: createTestSidecarCodec('test-codec-scope'), model: 'm', loadRemoteImage: async () => { throw new Error('Unexpected remote image'); } });
+  const frames = (async function* (): AsyncGenerator<ProtocolFrame<AnthropicMessagesStreamEventEx>> {
+    yield eventFrame({ type: 'message_start', message: { container: null, diagnostics: null, stop_details: null, id: 'msg1', type: 'message', model: 'm', role: 'assistant', content: [], stop_reason: null, stop_sequence: null, usage: { cache_creation: null, cache_creation_input_tokens: null, cache_read_input_tokens: null, inference_geo: null, output_tokens_details: null, server_tool_use: null, service_tier: null, input_tokens: 1, output_tokens: 0 } } });
+    yield eventFrame({ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'call1', name: 'lookup', input: {} } });
+    yield eventFrame({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"q":1}' } });
+    yield eventFrame({ type: 'content_block_stop', index: 0 });
+    yield eventFrame({ type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 'call2', name: 'apply_patch', input: {} } });
+    yield eventFrame({ type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: '{"input":"patch"}' } });
+    yield eventFrame({ type: 'content_block_stop', index: 1 });
+    yield eventFrame({ type: 'message_delta', delta: { container: null, stop_details: null, stop_reason: 'tool_use', stop_sequence: null }, usage: { input_tokens: null, cache_creation_input_tokens: null, cache_read_input_tokens: null, output_tokens_details: null, server_tool_use: null, output_tokens: 1 } });
+    yield eventFrame({ type: 'message_stop' });
+  })();
+  const events: OpenAIResponsesStreamEventEx[] = [];
+  for await (const frame of trip.events(frames)) if (frame.type === 'event') events.push(frame.event);
+  expectFlatCallableKinds(events);
+});
