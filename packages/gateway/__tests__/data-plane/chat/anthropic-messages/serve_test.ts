@@ -681,6 +681,103 @@ test('alias resolution swaps the inbound model id for the target and overlays ru
   assertEquals(observed.speed, 'fast');
 });
 
+test('alias beta deny and effort rules apply only to their candidate, preserving the fallback request', async () => {
+  installRepo();
+  const observed: { body: Omit<AnthropicMessagesPayload, 'model'>; beta: readonly string[] }[] = [];
+  const firstCall = vi.fn(async (_model, body, _signal, opts): Promise<ProviderStreamResult<AnthropicMessagesStreamEventEx>> => {
+    observed.push({ body: body as Omit<AnthropicMessagesPayload, 'model'>, beta: opts?.anthropicBeta ?? [] });
+    return { ok: false, response: new Response('unavailable', { status: 503 }), modelKey: 'claude-primary' };
+  });
+  const fallbackCall = vi.fn(async (_model, body, _signal, opts): Promise<ProviderStreamResult<AnthropicMessagesStreamEventEx>> => {
+    observed.push({ body: body as Omit<AnthropicMessagesPayload, 'model'>, beta: opts?.anthropicBeta ?? [] });
+    return { ok: true, events: makeProtocolFrames(makeAnthropicMessagesResultEvents()), modelKey: 'claude-fallback' };
+  });
+  resolutionsQueue.push({
+    candidates: [
+      {
+        ...makeCandidate({ upstream: 'up_primary', modelId: 'claude-primary', callAnthropicMessages: firstCall }),
+        rules: { reasoning: { effort: 'high' }, anthropicBetaDeny: ['context-1m-2025-08-07'] },
+      },
+      makeCandidate({ upstream: 'up_fallback', modelId: 'claude-fallback', callAnthropicMessages: fallbackCall }),
+    ],
+    sawModel: true,
+    failedUpstreams: [],
+  });
+
+  const result = await anthropicMessagesServe.generate({
+    payload: makePayload({ output_config: { effort: 'xhigh' } }),
+    ctx: makeGatewayCtx(),
+    headers: new Headers({ 'anthropic-beta': 'context-1m-2025-08-07, advanced-tool-use-2025-11-20' }),
+  });
+
+  await collectEvents(assertResultType(result, 'events').events);
+  assertEquals(observed[0]?.body.output_config?.effort, 'high');
+  assertEquals(observed[0]?.beta, ['advanced-tool-use-2025-11-20']);
+  assertEquals(observed[1]?.body.output_config?.effort, 'xhigh');
+  assertEquals(observed[1]?.beta, ['context-1m-2025-08-07', 'advanced-tool-use-2025-11-20']);
+});
+
+test('alias first-event timeout falls through before any stream event reaches the caller', async () => {
+  installRepo();
+  const firstCall = vi.fn(async (_model, _body, signal): Promise<ProviderStreamResult<AnthropicMessagesStreamEventEx>> => ({
+    ok: true,
+    events: (async function* () {
+      await new Promise<void>((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal.reason), { once: true }));
+      yield* [];
+    })(),
+    modelKey: 'claude-slow',
+  }));
+  const fallbackCall = vi.fn(async (): Promise<ProviderStreamResult<AnthropicMessagesStreamEventEx>> => ({
+    ok: true, events: makeProtocolFrames(makeAnthropicMessagesResultEvents()), modelKey: 'claude-fallback', headers: new Headers(),
+  }));
+  resolutionsQueue.push({
+    candidates: [
+      {
+        ...makeCandidate({ upstream: 'up_slow', modelId: 'claude-slow', callAnthropicMessages: firstCall }),
+        rules: { anthropicFirstEventTimeoutMs: 10 },
+      },
+      makeCandidate({ upstream: 'up_fallback', modelId: 'claude-fallback', callAnthropicMessages: fallbackCall }),
+    ],
+    sawModel: true,
+    failedUpstreams: [],
+  });
+
+  const result = await anthropicMessagesServe.generate({ payload: makePayload(), ctx: makeGatewayCtx(), headers: new Headers() });
+
+  await collectEvents(assertResultType(result, 'events').events);
+  assertEquals(firstCall.mock.calls.length, 1);
+  assertEquals(fallbackCall.mock.calls.length, 1);
+});
+
+test('alias first-event preflight falls through on an upstream SSE error', async () => {
+  installRepo();
+  const firstCall = vi.fn(async (): Promise<ProviderStreamResult<AnthropicMessagesStreamEventEx>> => ({
+    ok: true,
+    events: makeProtocolFrames([{ type: 'error', error: { type: 'invalid_request_error', message: 'unsupported option' } }]),
+    modelKey: 'claude-primary',
+  }));
+  const fallbackCall = vi.fn(async (): Promise<ProviderStreamResult<AnthropicMessagesStreamEventEx>> => ({
+    ok: true, events: makeProtocolFrames(makeAnthropicMessagesResultEvents()), modelKey: 'claude-fallback', headers: new Headers(),
+  }));
+  resolutionsQueue.push({
+    candidates: [
+      {
+        ...makeCandidate({ upstream: 'up_primary', modelId: 'claude-primary', callAnthropicMessages: firstCall }),
+        rules: { anthropicFirstEventTimeoutMs: 100 },
+      },
+      makeCandidate({ upstream: 'up_fallback', modelId: 'claude-fallback', callAnthropicMessages: fallbackCall }),
+    ],
+    sawModel: true,
+    failedUpstreams: [],
+  });
+
+  const result = await anthropicMessagesServe.generate({ payload: makePayload(), ctx: makeGatewayCtx(), headers: new Headers() });
+
+  await collectEvents(assertResultType(result, 'events').events);
+  assertEquals(firstCall.mock.calls.length, 1);
+  assertEquals(fallbackCall.mock.calls.length, 1);
+});
+
 test('alias whose targets have no kind-matching binding surfaces as the regular model-missing 404', async () => {
   installRepo();
   queueResolution([], { sawModel: false });
