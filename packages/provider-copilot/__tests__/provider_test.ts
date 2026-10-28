@@ -378,7 +378,7 @@ test('Copilot provider runs the OpenAI Responses boundary chain on the compact p
         return jsonResponse({ token: 'copilot-access-token', expires_at: 4102444800, refresh_in: 3600, endpoints: { api: 'https://api.individual.githubcopilot.com' } });
       }
       if (url.pathname === '/models') {
-        return jsonResponse(copilotModels([{ id: 'gpt-resp', supported_endpoints: ['/responses'] }]));
+        return jsonResponse(copilotModels([{ id: 'gpt-5.6-sol', supported_endpoints: ['/responses'] }]));
       }
       if (url.pathname === '/responses') {
         openaiResponsesBody = (await request.json()) as Record<string, unknown>;
@@ -387,7 +387,7 @@ test('Copilot provider runs the OpenAI Responses boundary chain on the compact p
         return jsonResponse({
           id: 'resp_test',
           object: 'response',
-          model: 'gpt-resp',
+          model: 'gpt-5.6-sol',
           status: 'completed',
           output: [{ type: 'compaction', summary: 'compacted state' }],
           incomplete_details: null,
@@ -424,6 +424,8 @@ test('Copilot provider runs the OpenAI Responses boundary chain on the compact p
           },
         ],
         service_tier: 'priority',
+        temperature: 0,
+        top_p: 1,
       }, 'compact', undefined, noopUpstreamCallOptions());
 
       if (!result.ok) throw new Error('expected ok compaction result');
@@ -435,6 +437,8 @@ test('Copilot provider runs the OpenAI Responses boundary chain on the compact p
   if (!openaiResponsesBody) throw new Error('expected /responses to be hit');
   assertEquals('store' in openaiResponsesBody, false);
   assertEquals('service_tier' in openaiResponsesBody, false);
+  assertEquals('temperature' in openaiResponsesBody, false);
+  assertEquals('top_p' in openaiResponsesBody, false);
   const wireInput = openaiResponsesBody?.input as Array<{ type: string }>;
   assertEquals(wireInput[0]?.type, 'additional_tools');
   assertEquals(
