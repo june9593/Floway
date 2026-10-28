@@ -77,6 +77,23 @@ test('POST /api/aliases creates an alias and returns the snake_case wire shape',
   assertEquals(stored.visibleInModelsList, true);
 });
 
+test('POST /api/aliases accepts candidate-scoped Anthropic beta deny rules', async () => {
+  const { repo, adminSession } = await setupAppTest();
+  await repo.modelAliases.deleteAll();
+
+  const resp = await requestApp(
+    '/api/aliases',
+    authed(adminSession, baseBody({
+      targets: [{ target_model_id: 'claude-opus-4-5', rules: { anthropicBetaDeny: ['context-1m-2025-08-07'], anthropicEffortDeny: true, anthropicFirstEventTimeoutMs: 30_000 } }],
+    })),
+  );
+  assertEquals(resp.status, 201);
+  const body = (await resp.json()) as { targets: { rules: { anthropicBetaDeny?: string[]; anthropicEffortDeny?: boolean; anthropicFirstEventTimeoutMs?: number } }[] };
+  assertEquals(body.targets[0].rules.anthropicBetaDeny, ['context-1m-2025-08-07']);
+  assertEquals(body.targets[0].rules.anthropicEffortDeny, true);
+  assertEquals(body.targets[0].rules.anthropicFirstEventTimeoutMs, 30_000);
+});
+
 test('POST /api/aliases rejects a name collision with 409', async () => {
   const { repo, adminSession } = await setupAppTest();
   await repo.modelAliases.deleteAll();

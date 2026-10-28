@@ -7,6 +7,7 @@
 import { test } from 'vitest';
 
 import { applyRulesToUpstreamOpenAIChatCompletions, applyRulesToUpstreamAnthropicMessages, applyRulesToUpstreamOpenAIResponses } from '../../../../src/data-plane/chat/shared/alias-rules.ts';
+import { applyRulesToAnthropicBeta, applyRulesToUpstreamOpenAIChatCompletions, applyRulesToUpstreamAnthropicMessages, applyRulesToUpstreamOpenAIResponses } from '../../../../src/data-plane/chat/shared/alias-rules.ts';
 import type { AnthropicMessagesPayload } from '@floway-dev/protocols/anthropic-messages';
 import type { OpenAIChatCompletionsPayload } from '@floway-dev/protocols/openai-chat-completions';
 import type { OpenAIResponsesPayloadEx } from '@floway-dev/protocols/openai-responses';
@@ -135,6 +136,22 @@ test('messages: empty rules leave the payload unchanged', () => {
   assertEquals(body.output_config?.effort, 'high');
   assertEquals((body.thinking !== undefined && 'budget_tokens' in body.thinking ? body.thinking.budget_tokens : undefined), 512);
   assertEquals(body.speed, 'fast');
+});
+
+test('messages: anthropicBetaDeny removes only exact denied beta values', () => {
+  const beta = ['context-1m-2025-08-07', 'advanced-tool-use-2025-11-20'];
+  assertEquals(applyRulesToAnthropicBeta(beta, { anthropicBetaDeny: ['context-1m-2025-08-07'] }), ['advanced-tool-use-2025-11-20']);
+  assertEquals(applyRulesToAnthropicBeta(beta, {}), beta);
+});
+
+test('messages: anthropicEffortDeny removes effort while preserving output format', () => {
+  const body = msgPayload({ output_config: { effort: 'xhigh', format: { type: 'json_schema', schema: { type: 'object' } } } });
+  applyRulesToUpstreamAnthropicMessages(body, { anthropicEffortDeny: true });
+  assertEquals(body.output_config, { format: { type: 'json_schema', schema: { type: 'object' } } });
+
+  const effortOnly = msgPayload({ output_config: { effort: 'high' } });
+  applyRulesToUpstreamAnthropicMessages(effortOnly, { anthropicEffortDeny: true });
+  assertEquals(effortOnly.output_config, undefined);
 });
 
 test('messages: effort lands on output_config, budget+adaptive land on thinking', () => {
