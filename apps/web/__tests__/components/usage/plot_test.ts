@@ -58,7 +58,7 @@ describe('cost chart series', () => {
       range: 'today',
       buckets: [bucket],
     });
-    expect(areaPlot(model.plot).lineChartData![0]!.data).toEqual([]);
+    expect(areaPlot(model.plot).lineChartData).toEqual([]);
   });
 });
 
