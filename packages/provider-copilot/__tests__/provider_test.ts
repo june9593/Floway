@@ -8,6 +8,7 @@ import { readCopilotUpstreamState, type CopilotUpstreamState } from '../src/stat
 import type { CopilotRawModel } from '../src/types.ts';
 import { createInMemoryImageProcessor, initImageProcessor } from '@floway-dev/platform';
 import type { AnthropicMessagesPayload } from '@floway-dev/protocols/anthropic-messages';
+import type { CanonicalOpenAIResponsesPayload } from '@floway-dev/protocols/openai-responses';
 import type { UpstreamRecord } from '@floway-dev/provider';
 import { directFetcher, initProviderRepo } from '@floway-dev/provider';
 import { assertEquals, assertRejects, assertThrows, jsonResponse, noopAnthropicMessagesUpstreamCallOptions, noopUpstreamCallOptions, sseResponse, withMockedFetch } from '@floway-dev/test-utils';
@@ -448,6 +449,73 @@ test('Copilot provider runs the OpenAI Responses boundary chain on the compact p
   assertEquals(wireInput.at(-1)?.type, 'compaction_trigger');
   assertEquals(visionHeader, 'true');
   assertEquals(initiatorHeader, 'user');
+});
+
+test.each(['generate', 'compact'] as const)('Copilot retries native %s compaction without reasoning only after a context-window rejection', async action => {
+  const { copilotUpstream } = await setupCopilotTest();
+  const provider = createCopilotProvider(copilotUpstream).instance;
+  const input: CanonicalOpenAIResponsesPayload['input'] = [
+    { type: 'compaction', id: 'cmp_previous', encrypted_content: 'previous summary' },
+    { type: 'message', id: 'msg_user', role: 'user', content: 'Keep the original task.' },
+    { type: 'reasoning', id: 'rs_previous', encrypted_content: 'opaque reasoning', summary: [] },
+    { type: 'function_call', id: 'fc_previous', call_id: 'call_previous', name: 'lookup', arguments: '{"query":"original"}' },
+    { type: 'function_call_output', call_id: 'call_previous', output: 'complete tool result' },
+    { type: 'message', id: 'msg_assistant', role: 'assistant', content: [{ type: 'output_text', text: 'Visible progress.' }] },
+    { type: 'agent_message', id: 'am_previous', author: 'worker', recipient: 'parent', content: [{ type: 'input_text', text: 'Worker result.' }] },
+  ];
+  if (action === 'generate') input.push({ type: 'compaction_trigger' });
+  const bodies: Record<string, unknown>[] = [];
+  const errorResponse = jsonResponse({
+    error: {
+      code: 'invalid_request_body',
+      message: 'Your input exceeds the context window of this model. Please adjust your input and try again.',
+    },
+  }, 400);
+
+  await withMockedFetch(async request => {
+    const url = new URL(request.url);
+    if (url.pathname === '/copilot_internal/v2/token') {
+      return jsonResponse({ token: 'copilot-access-token', expires_at: 4102444800, endpoints: { api: 'https://api.individual.githubcopilot.com' } });
+    }
+    if (url.pathname === '/models') return jsonResponse(copilotModels([{ id: 'gpt-test', supported_endpoints: ['/responses'] }]));
+    if (url.pathname !== '/responses') throw new Error(`Unhandled fetch ${request.url}`);
+    bodies.push(await request.json() as Record<string, unknown>);
+    assertEquals(request.headers.get('x-session-id'), 'original-session');
+    if (bodies.length === 1) return errorResponse;
+    assertEquals(errorResponse.bodyUsed, true);
+    const response = {
+      id: 'resp_compacted', object: 'response', status: 'completed', model: 'gpt-test',
+      output: [{ type: 'compaction', id: 'cmp_new', encrypted_content: 'new summary' }],
+    };
+    return action === 'compact'
+      ? jsonResponse(response)
+      : sseResponse(`data: ${JSON.stringify({ type: 'response.completed', response })}\n\n`);
+  }, async () => {
+    const [model] = await provider.getProvidedModels(directFetcher);
+    const result = await provider.callOpenAIResponses(model, {
+      input,
+      instructions: 'Preserve every task detail.',
+      tools: [{ type: 'function', name: 'lookup', parameters: { type: 'object' }, strict: false }],
+      reasoning: { effort: 'low' },
+      max_output_tokens: 12345,
+    }, action, undefined, noopUpstreamCallOptions({ headers: new Headers({ 'x-session-id': 'original-session' }) }));
+    if (!result.ok) throw new Error('expected successful native compaction');
+    assertEquals(result.action, action);
+    if (result.action === 'generate') {
+      const events = [];
+      for await (const frame of result.events) events.push(frame);
+      assertEquals(events.some(frame => frame.type === 'event' && frame.event.type === 'response.completed'), true);
+    } else {
+      assertEquals(result.result.object, 'response.compaction');
+      assertEquals(result.result.output.some(item => item.type === 'compaction'), true);
+    }
+  });
+
+  const wireInput = action === 'compact' ? [...input, { type: 'compaction_trigger' }] : input;
+  assertEquals(bodies.length, 2);
+  assertEquals(bodies[0].input, wireInput);
+  assertEquals(bodies[1], { ...bodies[0], input: [wireInput[0], wireInput[1], ...wireInput.slice(3)] });
+  assertEquals(input.length, action === 'compact' ? 7 : 8);
 });
 
 test('Copilot provider exposes its default flag set via ProviderModel.enabledFlags', async () => {

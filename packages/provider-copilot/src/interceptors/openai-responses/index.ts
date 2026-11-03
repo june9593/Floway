@@ -6,6 +6,7 @@ import { withToolArgumentWhitespaceAborted } from './abort-on-tool-argument-whit
 import { withInlineImagesCompressed } from './compress-images.ts';
 import { withEmptyNamespaceDescriptionsFilled } from './fill-empty-namespace-descriptions.ts';
 import { withCopilotOpenAIResponsesItemIdMembrane } from './item-id-membrane.ts';
+import { withCompactionRetried } from './retry-compaction.ts';
 import { withInitiatorHeaderSet } from './set-initiator-header.ts';
 import { withVisionHeaderSet } from './set-vision-header.ts';
 import { withImageGenerationStripped } from './strip-image-generation.ts';
@@ -21,6 +22,8 @@ import type { CopilotOpenAIResponsesBoundaryInterceptor } from './types.ts';
 // `ctx.headers` for the upstream call. Result mutators sit between: the
 // whitespace guard acts only on generate streams, while the item-id membrane
 // also normalizes the generated item in compact value envelopes.
+// The compaction retry runs last so its second attempt preserves the wire ids
+// and headers already produced by the rest of the boundary.
 export const COPILOT_OPENAI_RESPONSES_BOUNDARY = [
   withInlineImagesCompressed,
   withEmptyNamespaceDescriptionsFilled,
@@ -31,4 +34,5 @@ export const COPILOT_OPENAI_RESPONSES_BOUNDARY = [
   withToolArgumentWhitespaceAborted,
   withVisionHeaderSet,
   withInitiatorHeaderSet,
+  withCompactionRetried,
 ] as const satisfies readonly CopilotOpenAIResponsesBoundaryInterceptor[];
