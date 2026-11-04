@@ -51,7 +51,7 @@ import { toInternalDebugError } from '@floway-dev/provider';
 // https://github.com/anthropics/anthropic-sdk-typescript/blob/main/src/resources/models.ts
 const toClaudeCodeCatalog = (response: PublicModelsResponse) => {
   const CREATED_AT_UNKNOWN = '1970-01-01T00:00:00Z';
-  const data = response.data.map(model => {
+  const data = response.data.filter(model => model.kind !== 'decision').map(model => {
     const max = model.limits.max_context_window_tokens;
     return {
       id: max !== undefined && max >= 1_000_000 ? `${model.id}[1m]` : model.id,

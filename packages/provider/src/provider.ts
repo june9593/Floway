@@ -150,6 +150,7 @@ export interface ProviderInstance {
   // Response verbatim.
   callAnthropicMessagesCountTokens(model: ProviderModel, body: Omit<AnthropicMessagesPayload, 'model'>, signal: AbortSignal | undefined, opts: AnthropicMessagesUpstreamCallOptions): Promise<ProviderCallResult>;
   callOpenAIEmbeddings(model: ProviderModel, body: Omit<OpenAIEmbeddingsPayload, 'model'>, signal: AbortSignal | undefined, opts: UpstreamCallOptions): Promise<ProviderCallResult>;
+  callSystemOne(model: ProviderModel, body: Record<string, unknown>, signal: AbortSignal | undefined, opts: UpstreamCallOptions): Promise<ProviderCallResult>;
   callOpenAIImagesGenerations(model: ProviderModel, body: Omit<OpenAIImagesGenerationsPayload, 'model'>, signal: AbortSignal | undefined, opts: UpstreamCallOptions): Promise<ProviderCallResult>;
   callOpenAIImagesEdits(model: ProviderModel, request: OpenAIImagesEditsRequest, signal: AbortSignal | undefined, opts: UpstreamCallOptions): Promise<ProviderCallResult>;
   callOpenAIAudioTranscriptions(model: ProviderModel, request: OpenAIAudioTranscriptionRequest, signal: AbortSignal | undefined, opts: UpstreamCallOptions): Promise<ProviderCallResult>;

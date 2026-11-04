@@ -38,6 +38,11 @@ Add an upstream under **Providers → Upstreams**, then create a key under
 **Services → API Keys**. Use the API key in your client code or configure your
 agents to use Floway as provider through **Agent Setup**.
 
+GitHub Copilot decision models expose `POST /v1/systemone`. Supply a model,
+`state`, and typed `questions`; the response contains numerical answers and
+probabilities. See the [Microsoft-Decision-1 guide](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision)
+for the `choice`, `noul`, and `score` request shapes.
+
 ## Development
 
 ```bash

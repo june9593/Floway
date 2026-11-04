@@ -250,6 +250,7 @@ export const createCustomProvider = (record: UpstreamRecord): Provider => {
     callAnthropicMessages: (model, body, signal, opts) => callStreaming(customFetchAnthropicMessages, model, body, signal, headersForAnthropicMessagesCall(headersForCall(opts.headers), opts.anthropicBeta), parseAnthropicMessagesStream, opts),
     callAnthropicMessagesCountTokens: (model, body, signal, opts) => call(customFetchAnthropicMessagesCountTokens, model, body, signal, headersForAnthropicMessagesCall(headersForCall(opts.headers), opts.anthropicBeta), opts),
     callOpenAIEmbeddings: (model, body, signal, opts) => call(customFetchOpenAIEmbeddings, model, body, signal, headersForCall(opts.headers), opts),
+    callSystemOne: () => Promise.reject(new Error('Custom provider does not support callSystemOne')),
     callOpenAIImagesGenerations: (model, body, signal, opts) => call(customFetchOpenAIImagesGenerations, model, body, signal, headersForCall(opts.headers), opts),
     callOpenAIImagesEdits: async (model, request, signal, opts) => {
       const rawModelId = rawModelIdOf(model);

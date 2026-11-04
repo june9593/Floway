@@ -127,7 +127,7 @@ export function ModelDetail({
           ariaLabel={t('dashboard.upstreamEditor.models.source')}
           items={[
             { value: 'auto', label: t('dashboard.upstreamEditor.models.auto'), disabled: readOnly || !row.hasAuto },
-            { value: 'manual', label: t('dashboard.upstreamEditor.models.manual'), disabled: readOnly },
+            { value: 'manual', label: t('dashboard.upstreamEditor.models.manual'), disabled: readOnly || (row.source === 'auto' && row.config.kind === 'decision') },
           ]}
           onChange={value => onSourceChange(value as 'auto' | 'manual')}
           value={row.source}
@@ -151,8 +151,9 @@ export function ModelDetail({
               <Input className="!w-full" placeholder={t('dashboard.upstreamEditor.models.displayNamePlaceholder')} readOnly={fieldsReadOnly} value={row.config.display_name ?? ''} onChange={(_, data) => patch({ display_name: data.value || undefined })} />
             </Field>
             <Field className="min-w-0" label={t('dashboard.upstreamEditor.models.kind')}>
-              <Dropdown readOnly={fieldsReadOnly} selectedOptions={[row.config.kind]} value={modelKindLabel(row.config.kind)} onOptionSelect={(_, data) => data.optionValue !== undefined && setKind(data.optionValue as UpstreamModelConfig['kind'])}>
+              <Dropdown readOnly={fieldsReadOnly} selectedOptions={[row.config.kind]} value={t(`dashboard.upstreamEditor.models.kindValue.${row.config.kind}`)} onOptionSelect={(_, data) => data.optionValue !== undefined && setKind(data.optionValue as UpstreamModelConfig['kind'])}>
                 <Option value="chat">Chat</Option><Option value="embedding">Embedding</Option><Option value="image">Image</Option><Option value="transcription">Transcription</Option>
+                {row.config.kind === 'decision' && <Option value="decision" disabled>{t('dashboard.upstreamEditor.models.kindValue.decision')}</Option>}
                 {/* The gateway only accepts a rerank target on a custom upstream, so the kind is offered only where it can be saved. */}
                 {record.kind === 'custom' && <Option value="rerank">Rerank</Option>}
               </Dropdown>
@@ -302,16 +303,6 @@ function EffortEditor({ effort, onChange, readOnly, t }: { readOnly: boolean; ef
     </Field>
   </div>;
 }
-
-const modelKindLabel = (kind: UpstreamModelConfig['kind']): string => {
-  switch (kind) {
-  case 'chat': return 'Chat';
-  case 'embedding': return 'Embedding';
-  case 'image': return 'Image';
-  case 'transcription': return 'Transcription';
-  case 'rerank': return 'Rerank';
-  }
-};
 
 const optionalNumber = (raw: string): number | undefined => raw === '' ? undefined : Number.isFinite(Number(raw)) && Number(raw) >= 0 ? Number(raw) : undefined;
 const cleanObject = <T extends object>(value: T) => Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T;

@@ -3,6 +3,14 @@ import { describe, expect, test } from 'vitest';
 import { chatField, modelsField, pricingField } from '../src/model-config.ts';
 import { assertEquals, assertThrows } from '@floway-dev/test-utils';
 
+test('manual models cannot claim unsupported SystemOne routing', () => {
+  assertThrows(
+    () => modelsField([{ upstreamModelId: 'decision', endpoints: { systemOne: {} } }], 'custom'),
+    Error,
+    'SystemOne is only supported by discovered Copilot models',
+  );
+});
+
 test('pricingField parses explicit flat entries', () => {
   assertEquals(pricingField(undefined, 'pricing'), undefined);
   const value = {

@@ -151,6 +151,7 @@ export const createCodexProvider = (record: UpstreamRecord): Provider => {
     callOpenAICompletions: () => unsupportedCallResult(),
     callOpenAIChatCompletions: () => unsupportedStreamResult(),
     callOpenAIEmbeddings: () => unsupportedCallResult(),
+    callSystemOne: () => unsupportedCallResult(),
     callOpenAIImagesGenerations: async (model, body, signal, opts) => {
       const { account } = await readActiveAccount();
       return await callCodexOpenAIImagesGenerations({ upstreamId: record.id, account, model, headers: opts.headers, signal, effects, call: opts, body, fallbackPlanType: accountIdentity.planType ?? undefined });

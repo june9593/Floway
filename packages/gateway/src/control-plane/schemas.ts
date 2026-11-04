@@ -57,6 +57,7 @@ const modelEndpointsSchema = z.object({
   openaiImagesGenerations: z.object({}).optional(),
   openaiImagesEdits: z.object({}).optional(),
   openaiAudioTranscriptions: z.object({}).optional(),
+  systemOne: z.object({}).optional(),
   rerank: z.object({}).optional(),
 });
 
@@ -171,6 +172,9 @@ const upstreamModelSchema = z.object({
   chat: chatSchema.optional(),
   opaqueBlobCompatibilityScope: opaqueBlobCompatibilityScopeSchema.optional(),
 }).refine(
+  m => m.endpoints.systemOne === undefined,
+  { message: 'SystemOne is only supported by discovered Copilot models', path: ['endpoints'] },
+).refine(
   m => m.chat === undefined || m.kind === undefined || m.kind === 'chat',
   { message: "chat metadata only allowed when kind === 'chat'", path: ['chat'] },
 ).refine(
@@ -201,7 +205,10 @@ const customConfigSchema = z.object({
   modelsFetch: z.object({ enabled: z.boolean(), endpoint: z.string().optional() }).optional(),
   // Statically configured per-model overrides merged with the live fetch.
   models: z.array(upstreamModelSchema).optional(),
-});
+}).refine(
+  config => config.endpoints.systemOne === undefined,
+  { message: 'SystemOne is only supported by discovered Copilot models', path: ['endpoints'] },
+);
 
 const azureConfigSchema = z.object({
   endpoint: z.string().min(1),

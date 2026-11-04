@@ -108,6 +108,7 @@ export const createAzureProvider = (record: UpstreamRecord): Provider => {
     callAnthropicMessages: (model, body, signal, opts) => callStreaming(azureFetchAnthropicMessages, model, body, signal, headersForAnthropicMessagesCall([...opts.headers], opts.anthropicBeta), parseAnthropicMessagesStream, opts),
     callAnthropicMessagesCountTokens: (model, body, signal, opts) => callNonStreaming(azureFetchAnthropicMessagesCountTokens, model, body, signal, headersForAnthropicMessagesCall([...opts.headers], opts.anthropicBeta), opts),
     callOpenAIEmbeddings: (model, body, signal, opts) => callNonStreaming(azureFetchOpenAIEmbeddings, model, body, signal, [...opts.headers], opts),
+    callSystemOne: () => Promise.reject(new Error('Azure provider does not support callSystemOne')),
     callOpenAIImagesGenerations: (model, body, signal, opts) => callNonStreaming(azureFetchOpenAIImagesGenerations, model, body, signal, [...opts.headers], opts),
     callOpenAIImagesEdits: async (model, request, signal, opts) => {
       const upstreamModelId = upstreamModelIdOf(model);
