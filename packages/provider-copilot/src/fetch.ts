@@ -73,5 +73,9 @@ export const copilotFetchAnthropicMessagesCountTokens = (config: CopilotFetchCon
   copilotFetchInternal(config, '/v1/messages/count_tokens', init, options);
 export const copilotFetchOpenAIEmbeddings = (config: CopilotFetchConfig, init: FetchInit, options: CopilotDataPlaneFetchOptions): Promise<Response> =>
   copilotFetchInternal(config, '/embeddings', init, options);
+// Copilot advertises this OpenAI Images path in /models.
+// https://developers.openai.com/api/reference/resources/images/methods/generate
+export const copilotFetchOpenAIImagesGenerations = (config: CopilotFetchConfig, init: FetchInit, options: CopilotDataPlaneFetchOptions): Promise<Response> =>
+  copilotFetchInternal(config, '/v1/images/generations', init, options);
 export const copilotFetchModels = (config: CopilotFetchConfig, init: FetchInit, options: CopilotDataPlaneFetchOptions): Promise<Response> =>
   copilotFetchInternal(config, '/models', init, options);

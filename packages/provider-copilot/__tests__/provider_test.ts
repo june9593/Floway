@@ -611,6 +611,50 @@ test('Copilot provider forces stream=true for streaming endpoints and leaves cou
   assertEquals('stream' in bodies['/embeddings'], false);
 });
 
+test('Copilot image generation keeps the catalog capability, request and response intact', async () => {
+  const { copilotUpstream } = await setupCopilotTest();
+  const provider = createCopilotProvider(copilotUpstream).instance;
+  const payload = { prompt: 'A brass lantern', n: 1, size: '1024x1024', quality: 'low', output_format: 'png' };
+  const result = { data: [{ b64_json: 'image-bytes' }], usage: { output_tokens: 196 } };
+  const calls: string[] = [];
+  await withMockedFetch(
+    async request => {
+      const path = new URL(request.url).pathname;
+      if (path === '/copilot_internal/v2/token') {
+        return jsonResponse({
+          token: 'copilot-access-token', expires_at: 4102444800,
+          endpoints: { api: 'https://api.individual.githubcopilot.com' },
+        });
+      }
+      if (path === '/models') {
+        return jsonResponse({
+          object: 'list', data: [{
+            id: 'gpt-image-2.5-flare',
+            supported_endpoints: ['/v1/images/generations', '/v1/images/edits'],
+            capabilities: { type: 'image' },
+          }],
+        });
+      }
+      calls.push(path);
+      assertEquals(path, '/v1/images/generations');
+      assertEquals(request.headers.get('authorization'), 'Bearer copilot-access-token');
+      assertEquals(await request.json(), { ...payload, model: 'gpt-image-2.5-flare' });
+      return Response.json(result, { headers: { 'x-image-test': 'preserved' } });
+    },
+    async () => {
+      const [model] = await provider.getProvidedModels(directFetcher);
+      assertEquals(model.kind, 'image');
+      assertEquals(model.endpoints, { openaiImagesGenerations: {} });
+      const response = await provider.callOpenAIImagesGenerations(model, payload, undefined, noopUpstreamCallOptions());
+      assertEquals(response.modelKey, 'gpt-image-2.5-flare');
+      assertEquals(response.response.status, 200);
+      assertEquals(response.response.headers.get('x-image-test'), 'preserved');
+      assertEquals(await response.response.json(), result);
+    },
+  );
+  assertEquals(calls, ['/v1/images/generations']);
+});
+
 test('Copilot provider sets copilot-vision-request when an image is nested inside tool_result.content', async () => {
   const { copilotUpstream } = await setupCopilotTest();
   const instance = createCopilotProvider(copilotUpstream);
