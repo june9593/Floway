@@ -84,6 +84,7 @@
       "/messages",
       "/messages/*",
       "/embeddings",
+      "/decisions",
       "/images/*",
       "/models",
       "/azure-api.codex/*"

@@ -32,4 +32,5 @@ test('kindForEndpoints returns rerank for the semantic rerank endpoint', () => {
 
 test('kindForEndpoints returns decision for SystemOne', () => {
   assertEquals(kindForEndpoints({ systemOne: {} }), 'decision');
+  assertEquals(kindForEndpoints({ openaiDecisions: {} }), 'decision');
 });

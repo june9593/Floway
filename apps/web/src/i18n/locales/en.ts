@@ -250,7 +250,7 @@ const en = {
           geminiGenerateContentGenerate: 'Gemini generateContent', geminiGenerateContentStream: 'Gemini streamGenerateContent (SSE)', geminiGenerateContentCount: 'Gemini countTokens',
           openAiEmbeddings: 'OpenAI Embeddings', openAiImageGeneration: 'OpenAI Image Generations', openAiImageEdit: 'OpenAI Image Edits', openAiTranscription: 'OpenAI Audio Transcriptions',
           cohereV1Rerank: 'Cohere Rerank v1', cohereV2Rerank: 'Cohere Rerank v2', jinaRerank: 'Jina Rerank', voyageRerank: 'Voyage Rerank',
-          codexSearch: 'Codex alpha search', systemOne: 'SystemOne Decisions',
+          codexSearch: 'Codex alpha search', systemOne: 'SystemOne Decisions', openAiDecisions: 'OpenAI Decisions',
         },
       },
       users: {

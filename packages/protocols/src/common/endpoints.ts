@@ -42,6 +42,7 @@ export interface ModelEndpoints {
   openaiAudioTranscriptions?: {};
   rerank?: {};
   systemOne?: {};
+  openaiDecisions?: {};
 }
 
 // Names a single endpoint within ModelEndpoints — used where one endpoint is
@@ -51,7 +52,8 @@ export type ModelEndpointKey = keyof ModelEndpoints;
 // Derive the high-level model kind from the supported endpoints.
 // `openaiEmbeddings` implies embedding,
 // `openaiImagesGenerations`/`openaiImagesEdits` implies image, `rerank`
-// implies rerank, `openaiAudioTranscriptions` implies transcription, `systemOne` implies decision, and
+// implies rerank, `openaiAudioTranscriptions` implies transcription, both
+// decision endpoints imply decision, and
 // generation protocols imply chat. Mixed endpoint sets use this first-match order for the
 // single kind while dispatch continues to narrow on each endpoint's presence.
 export const kindForEndpoints = (endpoints: ModelEndpoints): ModelKind => {
@@ -59,6 +61,6 @@ export const kindForEndpoints = (endpoints: ModelEndpoints): ModelKind => {
   if (endpoints.openaiImagesGenerations || endpoints.openaiImagesEdits) return 'image';
   if (endpoints.rerank) return 'rerank';
   if (endpoints.openaiAudioTranscriptions) return 'transcription';
-  if (endpoints.systemOne) return 'decision';
+  if (endpoints.systemOne || endpoints.openaiDecisions) return 'decision';
   return 'chat';
 };

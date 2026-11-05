@@ -42,6 +42,7 @@ const gatewayPaths = new Set([
   '/messages',
   '/messages/count_tokens',
   '/embeddings',
+  '/decisions',
   '/models',
   '/images/generations',
   '/images/edits',

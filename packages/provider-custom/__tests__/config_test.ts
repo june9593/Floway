@@ -36,7 +36,15 @@ test('custom upstreams cannot claim unsupported SystemOne routing', () => {
       config: { ...(baseRecord.config as Record<string, unknown>), endpoints: { systemOne: {} } },
     }),
     Error,
-    'SystemOne is only supported by discovered Copilot models',
+    'decision endpoints are only supported by discovered Copilot models',
+  );
+  assertThrows(
+    () => assertCustomUpstreamRecord({
+      ...baseRecord,
+      config: { ...(baseRecord.config as Record<string, unknown>), endpoints: { openaiDecisions: {} } },
+    }),
+    Error,
+    'decision endpoints are only supported by discovered Copilot models',
   );
 });
 

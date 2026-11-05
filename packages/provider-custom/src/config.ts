@@ -219,8 +219,8 @@ export const assertCustomUpstreamRecord = (record: UpstreamRecord): CustomUpstre
     modelsFetch: modelsFetchField(raw.modelsFetch),
     models: modelsField(raw.models ?? [], 'custom'),
   };
-  if (base.endpoints.systemOne !== undefined) {
-    throw new Error('Malformed custom upstream config: SystemOne is only supported by discovered Copilot models');
+  if (base.endpoints.systemOne !== undefined || base.endpoints.openaiDecisions !== undefined) {
+    throw new Error('Malformed custom upstream config: decision endpoints are only supported by discovered Copilot models');
   }
 
   if (authStyle === 'none') {

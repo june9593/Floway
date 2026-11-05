@@ -59,7 +59,7 @@ export const optionalStringField = (value: unknown, label: string): string | und
 };
 
 const MODEL_ENDPOINT_KEYS: ReadonlySet<ModelEndpointKey> = new Set<ModelEndpointKey>([
-  'openaiCompletions', 'openaiChatCompletions', 'openaiResponses', 'anthropicMessages', 'openaiEmbeddings', 'openaiImagesGenerations', 'openaiImagesEdits', 'rerank', 'openaiAudioTranscriptions', 'systemOne',
+  'openaiCompletions', 'openaiChatCompletions', 'openaiResponses', 'anthropicMessages', 'openaiEmbeddings', 'openaiImagesGenerations', 'openaiImagesEdits', 'rerank', 'openaiAudioTranscriptions', 'systemOne', 'openaiDecisions',
 ]);
 
 // The structured per-model capability map. A present key declares the model is
@@ -299,7 +299,9 @@ const modelField = (value: unknown, label: string): UpstreamModelConfig => {
   if (!isRecord(value)) throw new Error(`Malformed ${label}: must be an object`);
   const pricing = pricingField(value.pricing, `${label}.pricing`);
   const endpoints = endpointsField(value.endpoints, `${label}.endpoints`);
-  if (endpoints.systemOne !== undefined) throw new Error(`Malformed ${label}: SystemOne is only supported by discovered Copilot models`);
+  if (endpoints.systemOne !== undefined || endpoints.openaiDecisions !== undefined) {
+    throw new Error(`Malformed ${label}: decision endpoints are only supported by discovered Copilot models`);
+  }
   const kind = kindField(value.kind, endpoints, `${label}.kind`);
   const effectiveKind = kindForEndpoints(endpoints);
   const chat = chatField(value.chat, `${label}.chat`);

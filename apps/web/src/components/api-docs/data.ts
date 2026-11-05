@@ -44,6 +44,7 @@ export const apiDocsEndpoints = [
   endpoint('geminiGenerateContentAction', { group: 'generation', name: 'geminiGenerateContentStream', docs: 'https://ai.google.dev/api/generate-content', path: geminiGenerateContentActionPath('streamGenerateContent') }),
   endpoint('geminiGenerateContentAction', { group: 'generation', name: 'geminiGenerateContentCount', docs: 'https://ai.google.dev/api/tokens', path: geminiGenerateContentActionPath('countTokens') }),
   endpoint('systemOne', { group: 'generation', name: 'systemOne', docs: 'https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision' }),
+  endpoint('openaiDecisions', { group: 'generation', name: 'openAiDecisions', docs: 'https://developers.openai.com/api/reference/resources/decisions/methods/create' }),
 
   endpoint('openaiEmbeddings', { group: 'media', name: 'openAiEmbeddings', docs: `${openAi}/embeddings/create` }),
   endpoint('openaiImagesGenerations', { group: 'media', name: 'openAiImageGeneration', docs: `${openAi}/images/create` }),

@@ -43,6 +43,11 @@ GitHub Copilot decision models expose `POST /v1/systemone`. Supply a model,
 probabilities. See the [Microsoft-Decision-1 guide](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision)
 for the `choice`, `noul`, and `score` request shapes.
 
+Copilot's `gpt-6-luna-decisions` uses `POST /v1/decisions` instead. Send
+`input` and an array of `predicate`, `choice`, or `score` questions; see the
+[OpenAI Decisions API](https://developers.openai.com/api/reference/resources/decisions/methods/create)
+for the request and response shapes. The two decision protocols are not interchangeable.
+
 ## Development
 
 ```bash

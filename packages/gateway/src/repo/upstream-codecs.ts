@@ -26,6 +26,7 @@ const endpointsSchema = z.object({
   openaiImagesEdits: endpointSchema.optional(),
   openaiAudioTranscriptions: endpointSchema.optional(),
   systemOne: endpointSchema.optional(),
+  openaiDecisions: endpointSchema.optional(),
   rerank: endpointSchema.optional(),
 }).passthrough();
 

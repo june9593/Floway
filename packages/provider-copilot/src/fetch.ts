@@ -76,5 +76,8 @@ export const copilotFetchOpenAIEmbeddings = (config: CopilotFetchConfig, init: F
 // https://github.com/earendil-works/pi/issues/11678
 export const copilotFetchSystemOne = (config: CopilotFetchConfig, init: FetchInit, options: CopilotDataPlaneFetchOptions): Promise<Response> =>
   copilotFetchInternal(config, '/v1/systemone', init, options);
+// https://developers.openai.com/api/reference/resources/decisions/methods/create
+export const copilotFetchOpenAIDecisions = (config: CopilotFetchConfig, init: FetchInit, options: CopilotDataPlaneFetchOptions): Promise<Response> =>
+  copilotFetchInternal(config, '/v1/decisions', init, options);
 export const copilotFetchModels = (config: CopilotFetchConfig, init: FetchInit, options: CopilotDataPlaneFetchOptions): Promise<Response> =>
   copilotFetchInternal(config, '/models', init, options);

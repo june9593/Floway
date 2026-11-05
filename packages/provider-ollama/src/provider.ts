@@ -203,6 +203,7 @@ export const createOllamaProvider = (record: UpstreamRecord): Provider => {
     callAnthropicMessagesCountTokens: (model, body, signal, opts) => call(ollamaFetchAnthropicMessagesCountTokens, model, body, signal, headersForAnthropicMessagesCall([...opts.headers], opts.anthropicBeta), opts),
     callOpenAIEmbeddings: (model, body, signal, opts) => withProbes(opts, call(ollamaFetchOpenAIEmbeddings, model, body, signal, [...opts.headers], opts)),
     callSystemOne: rejectUnsupported('callSystemOne'),
+    callOpenAIDecisions: rejectUnsupported('callOpenAIDecisions'),
     // Ollama serves no image-generation endpoint; reject if the gateway ever
     // routes one here. /v1/images/* is not exposed by the upstream binary.
     callOpenAIImagesGenerations: rejectUnsupported('callOpenAIImagesGenerations'),

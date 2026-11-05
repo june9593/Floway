@@ -7,7 +7,12 @@ test('manual models cannot claim unsupported SystemOne routing', () => {
   assertThrows(
     () => modelsField([{ upstreamModelId: 'decision', endpoints: { systemOne: {} } }], 'custom'),
     Error,
-    'SystemOne is only supported by discovered Copilot models',
+    'decision endpoints are only supported by discovered Copilot models',
+  );
+  assertThrows(
+    () => modelsField([{ upstreamModelId: 'decision', endpoints: { openaiDecisions: {} } }], 'custom'),
+    Error,
+    'decision endpoints are only supported by discovered Copilot models',
   );
 });
 
