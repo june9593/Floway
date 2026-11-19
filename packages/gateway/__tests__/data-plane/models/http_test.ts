@@ -333,6 +333,7 @@ test('/models returns the same superset payload as /v1/models', async () => {
                 { selector: { serviceTier: 'fast' }, rates: { input_tokens: '0.00003', output_tokens: '0.00015', input_cache_read_tokens: '0.000003', input_cache_write_tokens: '0.0000375' } },
               ],
             },
+            info: { meta: { models_dev: { name: 'Claude Opus 4.7 XHigh' } } },
           },
           {
             id: 'embedding-only',
@@ -343,6 +344,7 @@ test('/models returns the same superset payload as /v1/models', async () => {
             kind: 'embedding',
             opaqueBlobCompatibilityScope: { bindToUpstream: true },
             endpoints: { openaiEmbeddings: {} },
+            info: { meta: { models_dev: { name: 'embedding-only' } } },
           },
           {
             id: 'gpt-image-2',
@@ -353,9 +355,98 @@ test('/models returns the same superset payload as /v1/models', async () => {
             kind: 'image',
             opaqueBlobCompatibilityScope: { bindToUpstream: true },
             endpoints: { openaiImagesGenerations: {}, openaiImagesEdits: {} },
+            info: { meta: { models_dev: { name: 'gpt-image-2' } } },
           },
         ],
       });
+    },
+  );
+});
+
+test('public model lists restate each row in a models.dev info envelope without changing the row', async () => {
+  const { apiKey, repo } = await setupAppTest();
+  await repo.upstreams.deleteAll();
+  await saveUpstreamForTest(repo.upstreams, buildCustomUpstreamRecord({
+    config: {
+      baseUrl: 'https://custom.example.com',
+      ingressHeadersRules: [],
+      apiKey: 'sk-custom',
+      endpoints: {},
+      modelsFetch: { enabled: false, authStyle: 'bearer' },
+      models: [
+        {
+          upstreamModelId: 'gpt-sample',
+          publicModelId: 'gpt-sample',
+          display_name: 'GPT Sample',
+          kind: 'chat',
+          endpoints: { openaiResponses: {} },
+          limits: { max_context_window_tokens: 1_050_000, max_prompt_tokens: 922_000, max_output_tokens: 128_000 },
+          chat: {
+            modalities: { input: ['text', 'image'], output: ['text'] },
+            reasoning: { effort: { supported: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], default: 'medium' } },
+          },
+        },
+        {
+          upstreamModelId: 'claude-sample',
+          publicModelId: 'claude-sample',
+          display_name: 'Claude Sample',
+          kind: 'chat',
+          endpoints: { anthropicMessages: {} },
+          limits: { max_context_window_tokens: 1_000_000 },
+        },
+      ],
+    },
+  }));
+
+  await withMockedFetch(
+    request => { throw new Error(`Unhandled fetch ${request.url}`); },
+    async () => {
+      const response = await requestAppWithWarmModels('/v1/models', { headers: { 'x-api-key': apiKey.key } });
+      assertEquals(response.status, 200);
+      const body = await response.json() as { data: Array<{ id: string }> };
+      expect(body.data.find(model => model.id === 'gpt-sample')).toEqual({
+        id: 'gpt-sample',
+        object: 'model',
+        type: 'model',
+        display_name: 'GPT Sample',
+        limits: { max_context_window_tokens: 1_050_000, max_prompt_tokens: 922_000, max_output_tokens: 128_000 },
+        kind: 'chat',
+        endpoints: { openaiResponses: {} },
+        opaqueBlobCompatibilityScope: { bindToUpstream: true },
+        chat: {
+          modalities: { input: ['text', 'image'], output: ['text'] },
+          reasoning: { effort: { supported: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], default: 'medium' } },
+          image_detail_original: false,
+        },
+        info: {
+          meta: {
+            capabilities: { vision: true, vision_source: 'upstream' },
+            models_dev: {
+              name: 'GPT Sample',
+              limit: { context: 1_050_000, input: 922_000, output: 128_000 },
+              modalities: { input: ['text', 'image'], output: ['text'] },
+              reasoning: true,
+              reasoning_options: [{ type: 'effort', values: ['none', 'low', 'medium', 'high', 'xhigh', 'max'] }],
+            },
+          },
+        },
+      });
+      expect(body.data.find(model => model.id === 'claude-sample')).toEqual({
+        id: 'claude-sample',
+        object: 'model',
+        type: 'model',
+        display_name: 'Claude Sample',
+        limits: { max_context_window_tokens: 1_000_000 },
+        kind: 'chat',
+        endpoints: { anthropicMessages: {} },
+        opaqueBlobCompatibilityScope: { bindToUpstream: true },
+        chat: { image_detail_original: false },
+        info: { meta: { models_dev: { name: 'Claude Sample', limit: { context: 1_000_000 } } } },
+      });
+
+      const codexPathResponse = await requestAppWithWarmModels('/azure-api.codex/models', { headers: { 'x-api-key': apiKey.key } });
+      assertEquals(codexPathResponse.status, 200);
+      assertEquals(await codexPathResponse.json(), body);
     },
   );
 });

@@ -99,6 +99,36 @@ export interface PublicModelLimits {
   max_prompt_tokens?: number;
 }
 
+// Partial models.dev model record: every field is optional except the name,
+// and a field appears only when the catalog row states the value it derives
+// from. Effort values stay open strings and pass through verbatim.
+// https://github.com/anomalyco/models.dev/blob/1022d3572c8ead5d11c1cf67e3020de90b3189f7/packages/core/src/schema.ts#L33-L70
+// https://github.com/anomalyco/models.dev/blob/1022d3572c8ead5d11c1cf67e3020de90b3189f7/packages/core/src/schema.ts#L150-L174
+export type ModelsDevReasoningOption =
+  | { type: 'effort'; values: string[] }
+  | { type: 'budget_tokens'; min?: number; max?: number };
+
+export interface ModelsDevModel {
+  name: string;
+  limit?: { context?: number; input?: number; output?: number };
+  modalities?: { input: InputModality[]; output: Modality[] };
+  reasoning?: true;
+  reasoning_options?: ModelsDevReasoningOption[];
+}
+
+// The `info.meta` envelope that model-list consumers such as cc-switch read
+// beside the row's own fields. `vision_source` names where the vision fact
+// came from; cc-switch trusts `vision: false` only when the source is not
+// "default", and the upstream catalog or operator model config is the only
+// source Floway reports.
+// https://github.com/farion1231/cc-switch/blob/bb6c66b1df6c885edbe4343ac43ce81c561c8a29/src/lib/modelMetadata.ts#L333-L403
+export interface PublicModelInfo {
+  meta: {
+    capabilities?: { vision: boolean; vision_source: 'upstream' };
+    models_dev: ModelsDevModel;
+  };
+}
+
 // Declares which models may replay an opaque blob emitted by this model. The
 // optional key deliberately remains unmaterialized on the catalog surface: an
 // omitted key means the upstream model id, while bindToUpstream controls
@@ -156,6 +186,9 @@ export interface PublicModel {
   // Present only on entries the gateway synthesized from an operator-defined
   // alias; absent for entries that came from an upstream catalog.
   aliasedFrom?: PublicModelAliasedFrom;
+  // The row's own metadata restated in models.dev form. Present on every
+  // /v1/models and /models row; the dashboard's model list omits it.
+  info?: PublicModelInfo;
   // Sidecar flag carried only on entries that are addressable-but-not-
   // listed: ids the data plane accepts (via `modelPrefix.addressable`
   // alternates) but that do NOT appear in the default `/v1/models`

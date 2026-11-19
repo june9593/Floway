@@ -1,3 +1,4 @@
+import { toModelsDevInfo } from './models-dev-info.ts';
 import type { ModelsRefreshScheduler } from '../../execution/models-refresh.ts';
 import { getRepo } from '../../repo/index.ts';
 import type { ModelAliasesRepo, User } from '../../repo/types.ts';
@@ -85,7 +86,10 @@ export const loadModels = async (
     aliases,
     narrowTargets: true,
   });
-  const data = merged.map(toPublicModel);
+  const data = merged.map(model => {
+    const row = toPublicModel(model);
+    return { ...row, info: toModelsDevInfo(row) };
+  });
   return {
     object: 'list',
     has_more: false,
