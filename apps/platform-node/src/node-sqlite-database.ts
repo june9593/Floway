@@ -4,6 +4,9 @@ import { DatabaseSync, type StatementSync } from 'node:sqlite';
 
 import type { SqlBindValue, SqlDatabase, SqlPreparedStatement, SqlResult } from '@floway-dev/platform';
 
+// https://sqlite.org/pragma.html#pragma_busy_timeout
+const SQLITE_BUSY_TIMEOUT_MS = 30_000;
+
 // node:sqlite's prepared statement is synchronous and returns plain rows.
 // We adapt it to the platform's async, enveloped contract. bind() returns a
 // fresh statement object so two awaited binds on the same prepared statement
@@ -91,6 +94,7 @@ export const createNodeSqliteDatabase = (path: string): SqlDatabase => {
   // component owns its own root.
   mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
+  db.exec(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
   // node:sqlite leaves foreign keys off by default; the schema relies on FK
   // enforcement, so turn it on at open.
   db.exec('PRAGMA foreign_keys = ON');

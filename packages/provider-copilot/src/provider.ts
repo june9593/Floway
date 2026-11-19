@@ -3,7 +3,7 @@ import { COMPACTION_TRIGGER, compactionResponse } from './compaction.ts';
 import { assertCopilotUpstreamRecord } from './config.ts';
 import { COPILOT_DEFAULT_FLAGS, defaultFlagsForCopilotModel } from './defaults.ts';
 import { fetchCopilotModels } from './fetch-models.ts';
-import { copilotFetchOpenAIChatCompletions, copilotFetchOpenAIEmbeddings, copilotFetchAnthropicMessages, copilotFetchAnthropicMessagesCountTokens, copilotFetchOpenAIResponses, copilotFetchSystemOne, copilotFetchOpenAIDecisions, type CopilotDataPlaneFetchOptions } from './fetch.ts';
+import { copilotFetchOpenAIChatCompletions, copilotFetchOpenAIEmbeddings, copilotFetchOpenAIImagesGenerations, copilotFetchAnthropicMessages, copilotFetchAnthropicMessagesCountTokens, copilotFetchOpenAIResponses, copilotFetchSystemOne, copilotFetchOpenAIDecisions, type CopilotDataPlaneFetchOptions } from './fetch.ts';
 import { COPILOT_ANTHROPIC_MESSAGES_BOUNDARY, COPILOT_ANTHROPIC_MESSAGES_COUNT_TOKENS_BOUNDARY } from './interceptors/anthropic-messages/index.ts';
 import type { AnthropicMessagesBoundaryCtx } from './interceptors/anthropic-messages/types.ts';
 import { COPILOT_OPENAI_CHAT_COMPLETIONS_BOUNDARY } from './interceptors/openai-chat-completions/index.ts';
@@ -115,6 +115,10 @@ const copilotModelEndpoints = (rawModels: readonly CopilotRawModel[]): ModelEndp
 
   if (rawModels.some(model => rawModelSupportsEndpoint(model, 'openaiChatCompletions'))) {
     return { openaiChatCompletions: {} };
+  }
+
+  if (rawModels.some(model => rawModelSupportsEndpoint(model, 'openaiImagesGenerations'))) {
+    return { openaiImagesGenerations: {} };
   }
 
   return rawModels.some(model => rawModelSupportsEndpoint(model, 'openaiEmbeddings')) ? { openaiEmbeddings: {} } : {};
@@ -499,9 +503,7 @@ export const createCopilotProvider = (record: UpstreamRecord): Provider => {
     callOpenAIEmbeddings: (model, body, signal, opts) => call(copilotFetchOpenAIEmbeddings, copilotOpenAIEmbeddingsBody(body), signal, rawModelFor(model, 'openaiEmbeddings'), [...opts.headers], opts),
     callSystemOne: (model, body, signal, opts) => call(copilotFetchSystemOne, body, signal, rawModelFor(model, 'systemOne'), [...opts.headers], opts),
     callOpenAIDecisions: (model, body, signal, opts) => call(copilotFetchOpenAIDecisions, body, signal, rawModelFor(model, 'openaiDecisions'), [...opts.headers], opts),
-    // Copilot has no /images/* upstream; catalog never emits a kind='image'
-    // model, so these stubs are unreachable.
-    callOpenAIImagesGenerations: rejectUnsupported('callOpenAIImagesGenerations'),
+    callOpenAIImagesGenerations: (model, body, signal, opts) => call(copilotFetchOpenAIImagesGenerations, body, signal, rawModelFor(model, 'openaiImagesGenerations'), [...opts.headers], opts),
     callOpenAIImagesEdits: rejectUnsupported('callOpenAIImagesEdits'),
     callOpenAIAudioTranscriptions: rejectUnsupported('callOpenAIAudioTranscriptions'),
     callRerank: rejectUnsupported('callRerank'),
