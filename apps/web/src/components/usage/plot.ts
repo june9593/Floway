@@ -63,10 +63,10 @@ export const buildTokenChart = ({
         return bucketValues.has(entry.id) ? bucketValues.get(entry.id)! : (isPercent ? null : 0);
       }),
     }))
-    .filter(({ data, entry }) =>
+    .filter(({ data }) =>
       isPercent
         ? data.some(value => value !== null)
-        : data.some(value => value !== null && value > 0) || hasRequests(details, entry.id));
+        : data.some(value => value !== null && value > 0));
 
   return {
     entries,
@@ -311,13 +311,6 @@ const plottableMetricValue = (counters: TokenCounters, metric: UsageMetric): num
   const value = summarizeCounters(counters)[summaryFieldForMetric[metric]];
   if (value === null) return null;
   return typeof value === 'number' ? value : decimalStringToPlottableNumber(value);
-};
-
-const hasRequests = (details: Map<string, Map<string, TokenCounters>>, id: string): boolean => {
-  for (const bucket of details.values()) {
-    if ((bucket.get(id)?.requests ?? 0) > 0) return true;
-  }
-  return false;
 };
 
 export const bucketKeyForCallout = (
