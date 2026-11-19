@@ -50,6 +50,18 @@ describe('percentage chart series', () => {
 });
 
 describe('cost chart series', () => {
+  it('keeps a measured zero cost when requests exist', () => {
+    const model = buildTokenChart({
+      records: [{ ...record({ input_tokens: '10' }), cost: '0' }],
+      dimensionOptions: [{ value: 'key-1', label: 'Key 1' }],
+      metric: 'cost',
+      range: 'today',
+      buckets: [bucket],
+    });
+    expect(areaPlot(model.plot).lineChartData![0]!.data)
+      .toEqual([expect.objectContaining({ y: 0 })]);
+  });
+
   it('does not turn unavailable pricing into measured zero cost', () => {
     const model = buildTokenChart({
       records: [record({ input_tokens: '10' })],
@@ -58,7 +70,7 @@ describe('cost chart series', () => {
       range: 'today',
       buckets: [bucket],
     });
-    expect(areaPlot(model.plot).lineChartData).toEqual([]);
+    expect(areaPlot(model.plot).lineChartData![0]!.data).toEqual([]);
   });
 });
 

@@ -1,6 +1,8 @@
+import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Worker } from 'node:worker_threads';
 
 import { test } from 'vitest';
 
@@ -116,8 +118,32 @@ test('foreign key enforcement is on', () => withTempDb(async path => {
 
 test('waits for transient cross-connection locks', () => withTempDb(async path => {
   const db = createNodeSqliteDatabase(path);
+  await db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY)');
 
-  const timeout = await db.prepare('PRAGMA busy_timeout').first<{ timeout: number }>();
-
-  assertEquals(timeout, { timeout: 30_000 });
+  // DatabaseSync blocks this event loop, so another thread must release the lock.
+  const lockHolder = new Worker(`
+    const { parentPort, workerData } = require('node:worker_threads');
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(workerData);
+    db.exec('BEGIN IMMEDIATE');
+    parentPort.postMessage('locked');
+    parentPort.once('message', () => {
+      setTimeout(() => {
+        db.exec('COMMIT');
+        db.close();
+        parentPort.postMessage('released');
+        parentPort.close();
+      }, 250);
+    });
+  `, { eval: true, workerData: path });
+  try {
+    assertEquals(await once(lockHolder, 'message'), ['locked']);
+    const released = once(lockHolder, 'message');
+    lockHolder.postMessage('release');
+    await db.prepare('INSERT INTO t (id) VALUES (?)').bind(1).run();
+    assertEquals(await released, ['released']);
+    assertEquals(await db.prepare('SELECT id FROM t').first<{ id: number }>(), { id: 1 });
+  } finally {
+    await lockHolder.terminate();
+  }
 }));
