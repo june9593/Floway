@@ -63,10 +63,18 @@ export const buildTokenChart = ({
         return bucketValues.has(entry.id) ? bucketValues.get(entry.id)! : (isPercent ? null : 0);
       }),
     }))
-    .filter(({ data, entry }) =>
-      isPercent
+    .filter(({ data, entry }) => {
+      if (metric === 'cost') {
+        // Idle buckets are zero-padded even when every observed cost is unknown.
+        return [...details.values()].some(bucket => {
+          const counters = bucket.get(entry.id);
+          return counters !== undefined && counters.cost !== null;
+        });
+      }
+      return isPercent
         ? data.some(value => value !== null)
-        : data.some(value => value !== null && value > 0) || hasRequests(details, entry.id));
+        : data.some(value => value !== null && value > 0) || hasRequests(details, entry.id);
+    });
 
   return {
     entries,

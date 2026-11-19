@@ -22,6 +22,14 @@ const bucket: ChartBucket = {
   end: Date.parse(`${RECORD_HOUR}:00:00.000Z`) + 3_600_000,
 };
 
+const idleBucket: ChartBucket = {
+  key: '2026-07-28T05',
+  label: '13:00 - 14:00',
+  date: new Date(bucket.end),
+  start: bucket.end,
+  end: bucket.end + 3_600_000,
+};
+
 const record = (metrics: DisplayUsageRecord['metrics'], group = 'key-1'): DisplayUsageRecord => ({
   bucket: bucket.key,
   group,
@@ -62,15 +70,32 @@ describe('cost chart series', () => {
       .toEqual([expect.objectContaining({ y: 0 })]);
   });
 
-  it('does not turn unavailable pricing into measured zero cost', () => {
+  it('does not turn unavailable pricing into measured zero cost in idle buckets', () => {
     const model = buildTokenChart({
       records: [record({ input_tokens: '10' })],
       dimensionOptions: [{ value: 'key-1', label: 'Key 1' }],
       metric: 'cost',
       range: 'today',
-      buckets: [bucket],
+      buckets: [bucket, idleBucket],
     });
-    expect(areaPlot(model.plot).lineChartData![0]!.data).toEqual([]);
+    expect(areaPlot(model.plot).lineChartData).toEqual([]);
+  });
+
+  it('keeps known zero cost without adding an unpriced group beside it', () => {
+    const model = buildTokenChart({
+      records: [
+        { ...record({ input_tokens: '10' }, 'known'), cost: '0' },
+        record({ input_tokens: '10' }, 'unknown'),
+      ],
+      dimensionOptions: [{ value: 'known', label: 'Known zero' }, { value: 'unknown', label: 'Unknown' }],
+      metric: 'cost',
+      range: 'today',
+      buckets: [bucket, idleBucket],
+    });
+    expect(areaPlot(model.plot).lineChartData?.map(series => ({
+      legend: series.legend,
+      values: series.data.map(point => point.y),
+    }))).toEqual([{ legend: 'Known zero', values: [0, 0] }]);
   });
 });
 
