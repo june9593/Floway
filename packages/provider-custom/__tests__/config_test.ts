@@ -29,6 +29,25 @@ const baseRecord: UpstreamRecord = {
   hue: 210,
 };
 
+test('custom upstreams cannot claim unsupported SystemOne routing', () => {
+  assertThrows(
+    () => assertCustomUpstreamRecord({
+      ...baseRecord,
+      config: { ...(baseRecord.config as Record<string, unknown>), endpoints: { systemOne: {} } },
+    }),
+    Error,
+    'decision endpoints are only supported by discovered Copilot models',
+  );
+  assertThrows(
+    () => assertCustomUpstreamRecord({
+      ...baseRecord,
+      config: { ...(baseRecord.config as Record<string, unknown>), endpoints: { openaiDecisions: {} } },
+    }),
+    Error,
+    'decision endpoints are only supported by discovered Copilot models',
+  );
+});
+
 test('assertCustomUpstreamRecord parses modelsFetch and models', () => {
   const { config } = assertCustomUpstreamRecord({
     ...baseRecord,

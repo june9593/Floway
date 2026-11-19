@@ -23,6 +23,7 @@ export const PERFORMANCE_OPERATIONS = [
   'image_edit',
   'rerank',
   'audio_transcription',
+  'decision',
 ] as const;
 export type PerformanceOperation = typeof PERFORMANCE_OPERATIONS[number];
 

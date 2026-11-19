@@ -30,6 +30,7 @@ export const wranglerProxiedPaths = [
   '/responses',
   '/messages',
   '/embeddings',
+  '/decisions',
   '/models',
   '/images/generations',
   '/images/edits',
